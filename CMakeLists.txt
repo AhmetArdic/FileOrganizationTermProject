@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29.2)
+cmake_minimum_required(VERSION 3.27)
 project(FileOrgTermProject)
 
 ##############################
@@ -6,7 +6,7 @@ project(FileOrgTermProject)
 ##############################
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 set(GIT_REPO_DIR_NAME SecLists)
-set(PROJECT_DIR "project")
+set(PROJECT_DIR application)
 
 set(UNPROCESSED_PASSWORDS_DIR ${CMAKE_SOURCE_DIR}/${PROJECT_DIR}/Unprocessed-Passwords)
 set(PROCESSED_PASSWORDS_DIR ${CMAKE_SOURCE_DIR}/${PROJECT_DIR}/Processed)
@@ -59,3 +59,7 @@ endforeach()
 ##############################
 #file(REMOVE_RECURSE ${EXTERNAL_DIR}/${GIT_REPO_DIR_NAME})
 
+##############################
+### 3 Derleme 
+##############################
+add_subdirectory(${PROJECT_DIR}/Code)
