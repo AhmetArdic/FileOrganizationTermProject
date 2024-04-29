@@ -4,6 +4,9 @@
 #include <filesystem>
 #include <unordered_map>
 
+#include <thread>
+#include <vector>
+
 #define _DEBUG
 
 const std::string CalculateMD5Hash(void)
@@ -23,7 +26,7 @@ const std::string CalculateSha256(void)
 }
 
 
-class IndexingProcessCls
+class IndexingProcessorCls
 {
 private:
     void WriteToFile(const std::string& line, const std::string& fileName, const std::string& path)
@@ -69,9 +72,9 @@ private:
         return path;
     }
 
-    int CalculateFileNumber(std::string& key)
+    int CalculateFileNumber(const std::string& key)
     {
-        if(++map_[key].totalLineNumberOfCurrentFile > IndexingProcessCls::MAX_LINE_NUMBER)
+        if(++map_[key].totalLineNumberOfCurrentFile > IndexingProcessorCls::MAX_LINE_NUMBER)
         {
             // eger o an uzerinde calisilan karakteri iceren dizindeki dosyanin satir sayisi MAX_LINE_NUMBER'i gecerse
 
@@ -83,7 +86,7 @@ private:
     }
 
 public:
-    IndexingProcessCls(const std::string& indexDir) : indexDir{indexDir} {}
+    IndexingProcessorCls(const std::string& indexDir) : indexDir{indexDir} {}
 
     void Scanning(const std::filesystem::directory_entry& entry)
     {
@@ -110,25 +113,32 @@ public:
 
     void Indexing()
     {
+        std::vector<std::thread> threads;
+
         for (const auto& item : passwords_) 
         {
-            std::string subfolderName = GenerateSubFolderName(item.first[0]);
-
 #ifdef DEBUG  
-            afterFilterForCaseSensitivityAndDuplications[subfolderName]++;
+            afterFilterForCaseSensitivityAndDuplications[item.first]++;
 #endif /* DEBUG */
 
-            for (const auto& password : item.second) 
+            threads.emplace_back([this, item]()
             {
-                int fileNumber = CalculateFileNumber(subfolderName);
+                for (const auto& password : item.second) 
+                {
+                    int fileNumber = CalculateFileNumber(item.first);
 
-                std::string subFolderPath = MakeSubFolder(indexDir + "\\" + subfolderName);
+                    std::string subFolderPath = MakeSubFolder(indexDir + "\\" + item.first);
 
-                std::string fileName = "passwords" + std::to_string(fileNumber) + ".txt";   // okunan sifrenin yazilacagi dosyanin ismi
+                    std::string fileName = "passwords" + std::to_string(fileNumber) + ".txt";   // okunan sifrenin yazilacagi dosyanin ismi
 
-                std::string line = password.first + "|" + CalculateMD5Hash() + "|" + CalculateSha128() + "|" + CalculateSha256() + "|" + password.second; 
-                WriteToFile(line, fileName, subFolderPath);
-            }
+                    std::string line = password.first + "|" + CalculateMD5Hash() + "|" + CalculateSha128() + "|" + CalculateSha256() + "|" + password.second; 
+                    WriteToFile(line, fileName, subFolderPath);
+                }
+            });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
         }
     }
 
@@ -161,7 +171,7 @@ int main(void)
     const std::string unprocessedPasswordsDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Unprocessed-Passwords";
     const std::string indexDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Index";
 
-    IndexingProcessCls indexingProcess{indexDir};
+    IndexingProcessorCls indexingProcessor{indexDir};
 
     // unprocessedPasswordsDir dizininde dolas
     for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
@@ -174,15 +184,15 @@ int main(void)
             std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
 #endif /* DEBUG */
 
-            indexingProcess.Scanning(entry);
+            indexingProcessor.Scanning(entry);
         }
     }
 
-    indexingProcess.Indexing();
+    indexingProcessor.Indexing();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Geçen süre: " << elapsed.count() << " milisaniye" << std::endl;
+    std::cout << "Elapsed time: " << elapsed.count() << " milisecond" << std::endl;
 
     return 0;
 }
