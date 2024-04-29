@@ -2,11 +2,9 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
-#include <map>
+#include <unordered_map>
 
-#include <thread>
-#include <mutex>
-#include <vector>
+#define _DEBUG
 
 const std::string CalculateMD5Hash(void)
 {
@@ -28,10 +26,8 @@ const std::string CalculateSha256(void)
 class IndexingProcessCls
 {
 private:
-    void WriteToFile(const std::string& line, const std::string& fileNumber, const std::string& path)
+    void WriteToFile(const std::string& line, const std::string& fileName, const std::string& path)
     {
-        const std::string fileName = "passwords" + fileNumber + ".txt"; // okunan sifrenin yazilacagi dosyanin ismi
-
         std::ofstream outputFile(path + "\\" + fileName, std::ios::app);  // ilgili dosyayi append modunda ac
         outputFile << line << std::endl;
         outputFile.close(); // dosyayi kapat
@@ -89,31 +85,49 @@ private:
 public:
     IndexingProcessCls(const std::string& indexDir) : indexDir{indexDir} {}
 
-    void Indexing(const std::filesystem::directory_entry& entry)
+    void Scanning(const std::filesystem::directory_entry& entry)
     {
-        if (entry.is_regular_file())
+        std::ifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
+        std::string line;
+
+        // okuma modunda acilan dosyanin satirlarında dolas
+        while (std::getline(inputFile, line)) 
         {
-            // dizindeki obje regular file ise
-            
-            std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
-
-            std::ifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
-            std::string line;
-
-            // okuma modunda acilan dosyanin satirlarında dolas
-            while (std::getline(inputFile, line)) 
+            if (!line.empty())  
             {
-                if (!line.empty())  
-                {
-                    // eger satir bos degilse
+                // eger satir bos degilse
 
-                    std::string subfolderName = GenerateSubFolderName(line[0]);
+                std::string subfolderName = GenerateSubFolderName(line[0]);
 
-                    int fileNumber = CalculateFileNumber(subfolderName);
-                    std::string subFolderPath = MakeSubFolder(indexDir + "\\" + subfolderName);
-                    WriteToFile(line+"|"+CalculateMD5Hash()+"|"+CalculateSha128()+"|"+CalculateSha256()+"|"+entry.path().filename().string(), 
-                                std::to_string(fileNumber), subFolderPath);
-                }
+#ifdef DEBUG    
+                beforeFilterForCaseSensitivityAndDuplications[subfolderName]++;
+#endif /* DEBUG */
+
+                passwords_[subfolderName][line] = entry.path().filename().string();
+            }
+        }
+    }
+
+    void Indexing()
+    {
+        for (const auto& item : passwords_) 
+        {
+            std::string subfolderName = GenerateSubFolderName(item.first[0]);
+
+#ifdef DEBUG  
+            afterFilterForCaseSensitivityAndDuplications[subfolderName]++;
+#endif /* DEBUG */
+
+            for (const auto& password : item.second) 
+            {
+                int fileNumber = CalculateFileNumber(subfolderName);
+
+                std::string subFolderPath = MakeSubFolder(indexDir + "\\" + subfolderName);
+
+                std::string fileName = "passwords" + std::to_string(fileNumber) + ".txt";   // okunan sifrenin yazilacagi dosyanin ismi
+
+                std::string line = password.first + "|" + CalculateMD5Hash() + "|" + CalculateSha128() + "|" + CalculateSha256() + "|" + password.second; 
+                WriteToFile(line, fileName, subFolderPath);
             }
         }
     }
@@ -130,7 +144,13 @@ private:
         int totalFileNumberOfIndexSubfolder;
     };
 
-    std::map<std::string, IndexingProcessStruct> map_;
+    std::unordered_map<std::string, IndexingProcessStruct> map_;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> passwords_;
+
+#ifdef DEBUG
+    std::unordered_map<std::string, int> beforeFilterForCaseSensitivityAndDuplications;
+    std::unordered_map<std::string, int> afterFilterForCaseSensitivityAndDuplications;
+#endif /* DEBUG */
 };
 
 #include <chrono>
@@ -146,8 +166,19 @@ int main(void)
     // unprocessedPasswordsDir dizininde dolas
     for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
     {
-        indexingProcess.Indexing(entry);
+        if (entry.is_regular_file())
+        {
+            // dizindeki obje regular file ise
+
+#ifdef DEBUG
+            std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
+#endif /* DEBUG */
+
+            indexingProcess.Scanning(entry);
+        }
     }
+
+    indexingProcess.Indexing();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
