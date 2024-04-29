@@ -85,9 +85,6 @@ private:
         return map_[key].totalFileNumberOfIndexSubfolder;
     }
 
-public:
-    IndexingProcessorCls(const std::string& indexDir) : indexDir{indexDir} {}
-
     void Scanning(const std::filesystem::directory_entry& entry)
     {
         std::ifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
@@ -143,10 +140,34 @@ public:
     }
 
 public:
+    IndexingProcessorCls(const std::string& indexDir, const std::string& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
+
+    void Run(void)
+    {
+        // unprocessedPasswordsDir dizininde dolas
+        for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
+        {
+            if (entry.is_regular_file())
+            {
+                // dizindeki obje regular file ise
+
+#ifdef DEBUG
+                std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
+#endif /* DEBUG */
+
+                Scanning(entry);
+            }
+        }
+
+        Indexing();
+    }
+
+private:
     static constexpr int MAX_LINE_NUMBER = 10000; 
 
 private:
-    std::string indexDir;
+    const std::string indexDir;
+    const std::string unprocessedPasswordsDir;
 
     struct IndexingProcessStruct
     {
@@ -171,24 +192,8 @@ int main(void)
     const std::string unprocessedPasswordsDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Unprocessed-Passwords";
     const std::string indexDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Index";
 
-    IndexingProcessorCls indexingProcessor{indexDir};
-
-    // unprocessedPasswordsDir dizininde dolas
-    for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
-    {
-        if (entry.is_regular_file())
-        {
-            // dizindeki obje regular file ise
-
-#ifdef DEBUG
-            std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
-#endif /* DEBUG */
-
-            indexingProcessor.Scanning(entry);
-        }
-    }
-
-    indexingProcessor.Indexing();
+    IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};
+    indexingProcessor.Run();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
