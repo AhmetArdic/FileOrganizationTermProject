@@ -5,7 +5,6 @@
 # Proje dizinleri
 ######################
 external/
-application/Unprocessed-Passwords/
 application/Index/
 build/
 
