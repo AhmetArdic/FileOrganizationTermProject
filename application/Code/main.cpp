@@ -9,56 +9,78 @@
 
 #define _DEBUG
 
-const std::string CalculateMD5Hash(void)
+const std::wstring CalculateMD5Hash(void)
 {
-    return "MD5Hash";
+    return L"MD5Hash";
 }
 
-const std::string CalculateSha128(void)
+const std::wstring CalculateSha128(void)
 {
-    return "Sha128";
+    return L"Sha128";
 }
 
 
-const std::string CalculateSha256(void)
+const std::wstring CalculateSha256(void)
 {
-    return "Sha256";
+    return L"Sha256";
 }
 
 
 class IndexingProcessorCls
 {
 private:
-    void WriteToFile(const std::string& line, const std::string& fileName, const std::string& path)
+    void WriteToFile(const std::wstring& line, const std::filesystem::path& path)
     {
-        std::ofstream outputFile(path + "\\" + fileName, std::ios::app);  // ilgili dosyayi append modunda ac
+        std::wofstream outputFile(path, std::ios::app);  // ilgili dosyayi append modunda ac
         outputFile << line << std::endl;
         outputFile.close(); // dosyayi kapat
     }
 
-    std::string GenerateSubFolderName(char firstChar)
+    std::wstring InvalidSignConvertor(wchar_t c)
     {
-        if(std::isdigit(firstChar)) 
+        switch (c)
         {
-            // ilk karakter sayi ise   
-            
-            return std::string(1, firstChar);
+        case L'\\':
+            return L"BackSlash";
+        case L'/':
+            return L"Slash";
+        case L':':
+            return L"Colon";
+        case L'*':
+            return L"Star";
+        case L'?':
+            return L"QuestionMark";
+        case L'"':
+            return L"QuotationMark";
+        case L'<':
+            return L"LessThanSign";
+        case L'>':
+            return L"GreaterThanSign";
+        case L'|':
+            return L"VerticalLineSign";
+        case L'':
+            return L"EscapeSequence";
+        default:
+            return std::wstring(1, c);
         }
-        else if(std::isalpha(firstChar))    
+    }
+    std::wstring GenerateSubFolderName(wchar_t firstChar)
+    {
+        if(!std::iswalpha(firstChar) && !std::iswdigit(firstChar))
         {
-            // ilk karakter alfabe ise
-
-            return std::string(1, std::tolower(firstChar));    // klasor isimleri buyuk-kucuk harf duyarliligina sahip olmadigi icin duzenliyorum
+            return L"@(" + InvalidSignConvertor(firstChar) + L")";
         }
-        else                                
+        else if(std::iswupper(firstChar))
         {
-            // ilk karakter sayi ve alfabe disinde bir karakterse
-
-            return "@";
+            return L"_" + std::wstring(1, firstChar) + L"_";
+        }
+        else
+        {
+            return std::wstring(1, firstChar);
         }
     }
 
-    std::string MakeSubFolder(const std::string& path)
+    std::wstring MakeSubFolder(const std::wstring& path)
     {
         // path: okunan dosyadaki sifrenin ilk karakterine gore olusturulacak klasorun ismi ve yolu
 
@@ -66,13 +88,20 @@ private:
         {
             // eger dizin yok ise olustur
 
-            std::filesystem::create_directory(path);
+            try
+            {
+                std::filesystem::create_directory(path);
+            }
+            catch(const std::exception& e)
+            {
+                throw;
+            }
         }
 
         return path;
     }
 
-    int CalculateFileNumber(const std::string& key)
+    int CalculateFileNumber(const std::wstring& key)
     {
         if(++map_[key].totalLineNumberOfCurrentFile > IndexingProcessorCls::MAX_LINE_NUMBER)
         {
@@ -87,8 +116,8 @@ private:
 
     void Scanning(const std::filesystem::directory_entry& entry)
     {
-        std::ifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
-        std::string line;
+        std::wifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
+        std::wstring line;
 
         // okuma modunda acilan dosyanin satirlarında dolas
         while (std::getline(inputFile, line)) 
@@ -97,13 +126,13 @@ private:
             {
                 // eger satir bos degilse
 
-                std::string subfolderName = GenerateSubFolderName(line[0]);
+                std::wstring subfolderName = GenerateSubFolderName(line[0]);
 
 #ifdef DEBUG    
                 beforeFilterForCaseSensitivityAndDuplications[subfolderName]++;
 #endif /* DEBUG */
 
-                passwords_[subfolderName][line] = entry.path().filename().string();
+                passwords_[subfolderName][line] = entry.path().filename().wstring();
             }
         }
     }
@@ -124,12 +153,12 @@ private:
                 {
                     int fileNumber = CalculateFileNumber(item.first);
 
-                    std::string subFolderPath = MakeSubFolder(indexDir + "\\" + item.first);
+                    std::wstring subFolderPath = MakeSubFolder(indexDir + L"\\" + item.first);
 
-                    std::string fileName = "passwords" + std::to_string(fileNumber) + ".txt";   // okunan sifrenin yazilacagi dosyanin ismi
+                    std::wstring fileName = L"passwords" + std::to_wstring(fileNumber) + L".txt";   // okunan sifrenin yazilacagi dosyanin ismi
 
-                    std::string line = password.first + "|" + CalculateMD5Hash() + "|" + CalculateSha128() + "|" + CalculateSha256() + "|" + password.second; 
-                    WriteToFile(line, fileName, subFolderPath);
+                    std::wstring line = password.first + L"|" + CalculateMD5Hash() + L"|" + CalculateSha128() + L"|" + CalculateSha256() + L"|" + password.second; 
+                    WriteToFile(line, subFolderPath + L"\\" + fileName);
                 }
             });
         }
@@ -140,7 +169,7 @@ private:
     }
 
 public:
-    IndexingProcessorCls(const std::string& indexDir, const std::string& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
+    IndexingProcessorCls(const std::wstring& indexDir, const std::wstring& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
 
     void Run(void)
     {
@@ -166,8 +195,8 @@ private:
     static constexpr int MAX_LINE_NUMBER = 10000; 
 
 private:
-    const std::string indexDir;
-    const std::string unprocessedPasswordsDir;
+    const std::wstring indexDir;
+    const std::wstring unprocessedPasswordsDir;
 
     struct IndexingProcessStruct
     {
@@ -175,12 +204,12 @@ private:
         int totalFileNumberOfIndexSubfolder;
     };
 
-    std::unordered_map<std::string, IndexingProcessStruct> map_;
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> passwords_;
+    std::unordered_map<std::wstring, IndexingProcessStruct> map_;
+    std::unordered_map<std::wstring, std::unordered_map<std::wstring, std::wstring>> passwords_;
 
 #ifdef DEBUG
-    std::unordered_map<std::string, int> beforeFilterForCaseSensitivityAndDuplications;
-    std::unordered_map<std::string, int> afterFilterForCaseSensitivityAndDuplications;
+    std::unordered_map<std::wstring, int> beforeFilterForCaseSensitivityAndDuplications;
+    std::unordered_map<std::wstring, int> afterFilterForCaseSensitivityAndDuplications;
 #endif /* DEBUG */
 };
 
@@ -189,8 +218,8 @@ int main(void)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    const std::string unprocessedPasswordsDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Unprocessed-Passwords";
-    const std::string indexDir = "C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Index";
+    const std::wstring unprocessedPasswordsDir = L"C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Unprocessed-Passwords";
+    const std::wstring indexDir = L"C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Index";
 
     IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};
     indexingProcessor.Run();
