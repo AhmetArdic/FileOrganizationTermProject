@@ -7,22 +7,35 @@
 #include <thread>
 #include <vector>
 
+#include "./hashingLibs/md5.h"
+#include "./hashingLibs/sha256.h"
+#include "./hashingLibs/sha1.h"
+
 #define _DEBUG
 
-const std::wstring CalculateMD5Hash(void)
+const std::wstring CalculateMD5Hash(std::wstring password)
 {
-    return L"MD5Hash";
+    static MD5 md5;
+
+    std::string result = md5(std::string(password.begin(), password.end()));
+    return std::wstring(result.begin(), result.end()) ;
 }
 
-const std::wstring CalculateSha128(void)
+const std::wstring CalculateSha128(std::wstring password)
 {
-    return L"Sha128";
+    static SHA1 sha1;
+    
+    std::string result = sha1(std::string(password.begin(), password.end()));
+    return std::wstring(result.begin(), result.end()) ;
 }
 
 
-const std::wstring CalculateSha256(void)
+const std::wstring CalculateSha256(std::wstring password)
 {
-    return L"Sha256";
+    static SHA256 sha256;
+
+    std::string result = sha256(std::string(password.begin(), password.end()));
+    return std::wstring(result.begin(), result.end()) ;
 }
 
 
@@ -157,7 +170,7 @@ private:
 
                     std::wstring fileName = L"passwords" + std::to_wstring(fileNumber) + L".txt";   // okunan sifrenin yazilacagi dosyanin ismi
 
-                    std::wstring line = password.first + L"|" + CalculateMD5Hash() + L"|" + CalculateSha128() + L"|" + CalculateSha256() + L"|" + password.second; 
+                    std::wstring line = password.first + L"|" + CalculateMD5Hash(password.first) + L"|" + CalculateSha128(password.first) + L"|" + CalculateSha256(password.first) + L"|" + password.second; 
                     WriteToFile(line, subFolderPath + L"\\" + fileName);
                 }
             });
