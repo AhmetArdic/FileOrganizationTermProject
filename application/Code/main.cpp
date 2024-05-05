@@ -7,11 +7,16 @@
 #include <thread>
 #include <vector>
 
+#include <functional>
+
 #include "./hashingLibs/md5.h"
 #include "./hashingLibs/sha256.h"
 #include "./hashingLibs/sha1.h"
 
-#define _DEBUG
+#include "./folderWatcher/folderWatcher.h"
+
+#define _DEBUG_
+#define _BENCHMARK_
 
 const std::wstring CalculateMD5Hash(std::wstring password)
 {
@@ -127,10 +132,98 @@ private:
         return map_[key].totalFileNumberOfIndexSubfolder;
     }
 
-    void Scanning(const std::filesystem::directory_entry& entry)
+    void ScanFolder(void)
     {
+#ifdef _DEBUG_
+        std::cout << "ScanFolder is started" << std::endl;
+#endif /* _DEBUG_ */
+
+        // unprocessedPasswordsDir dizininde dolas
+        for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
+        {
+            if (entry.is_regular_file())
+            {
+                // dizindeki obje regular file ise
+
+#ifdef _DEBUG_
+                std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
+#endif /* _DEBUG_ */
+
+                ScanFile(entry);
+            }
+        }
+
+#ifdef _DEBUG_
+        std::cout << "ScanFolder is finished" << std::endl;
+#endif /* _DEBUG_ */
+    }
+
+    void Indexing()
+    {
+#ifdef _DEBUG_
+        std::cout << "Indexing is started" << std::endl;
+#endif /* _DEBUG_ */
+        std::vector<std::thread> subFolderThreads;
+
+        for(auto item = passwords_.begin() ; item != passwords_.end() ; ++item)
+        {
+#ifdef _DEBUG_ 
+            afterFilterForCaseSensitivityAndDuplications[item->first]++;
+#endif /* _DEBUG_ */
+
+            subFolderThreads.emplace_back([this, item]()
+            {
+                std::vector<std::thread> fileThreads;
+
+                std::wstring subFolderPath = MakeSubFolder(indexDir + L"\\" + item->first);   
+
+                for(auto file = item->second.begin() ; file != item->second.end() ; ++file)
+                {
+                    fileThreads.emplace_back([this, subFolderPath, file]()
+                    {
+                        std::wstring fileName = L"passwords" + std::to_wstring(file->first) + L".txt";   // okunan sifrenin yazilacagi dosyanin ismi
+
+                        for(auto password = file->second.begin() ; password != file->second.end() ; ++password)
+                        {
+                            std::wstring line = password->first + L"|" + CalculateMD5Hash(password->first) + L"|" + CalculateSha128(password->first) + L"|" + CalculateSha256(password->first) + L"|" + password->second; 
+                            WriteToFile(line, subFolderPath + L"\\" + fileName);
+                        }
+                    });   
+                }
+
+                for (auto& thread : fileThreads) 
+                {
+                    thread.join();
+                }
+            });
+        }
+
+
+        for (auto& thread : subFolderThreads) 
+        {
+            thread.join();
+        }
+
+#ifdef _DEBUG_
+        std::cout << "Indexing is finished" << std::endl;
+#endif /* _DEBUG_ */
+    }
+
+public:
+    IndexingProcessorCls(const std::wstring& indexDir, const std::wstring& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
+
+    void ScanFile(const std::filesystem::directory_entry& entry)
+    {
+#ifdef _DEBUG_
+        std::cout << "ScanFile is started" << std::endl;
+#endif /* _DEBUG_ */
+
         std::wifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
         std::wstring line;
+
+#ifdef _BENCHMARK_
+        auto start = std::chrono::high_resolution_clock::now();
+#endif /* _BENCHMARK_ */
 
         // okuma modunda acilan dosyanin satirlarında dolas
         while (std::getline(inputFile, line)) 
@@ -140,66 +233,30 @@ private:
                 // eger satir bos degilse
 
                 std::wstring subfolderName = GenerateSubFolderName(line[0]);
+                int fileNumber = CalculateFileNumber(subfolderName);
 
-#ifdef DEBUG    
+#ifdef _DEBUG_   
                 beforeFilterForCaseSensitivityAndDuplications[subfolderName]++;
-#endif /* DEBUG */
+#endif /* _DEBUG_ */
 
-                passwords_[subfolderName][line] = entry.path().filename().wstring();
+                passwords_[subfolderName][fileNumber][line] = entry.path().filename().wstring(); 
             }
         }
+
+#ifdef _BENCHMARK_
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Elapsed time: " << elapsed.count() << " milisecond on " << entry.path().filename() << std::endl;
+#endif /* _BENCHMARK_ */
+
+#ifdef _DEBUG_
+        std::cout << "ScanFile is finished" << std::endl;
+#endif /* _DEBUG_ */
     }
-
-    void Indexing()
-    {
-        std::vector<std::thread> threads;
-
-        for (const auto& item : passwords_) 
-        {
-#ifdef DEBUG  
-            afterFilterForCaseSensitivityAndDuplications[item.first]++;
-#endif /* DEBUG */
-
-            threads.emplace_back([this, item]()
-            {
-                for (const auto& password : item.second) 
-                {
-                    int fileNumber = CalculateFileNumber(item.first);
-
-                    std::wstring subFolderPath = MakeSubFolder(indexDir + L"\\" + item.first);
-
-                    std::wstring fileName = L"passwords" + std::to_wstring(fileNumber) + L".txt";   // okunan sifrenin yazilacagi dosyanin ismi
-
-                    std::wstring line = password.first + L"|" + CalculateMD5Hash(password.first) + L"|" + CalculateSha128(password.first) + L"|" + CalculateSha256(password.first) + L"|" + password.second; 
-                    WriteToFile(line, subFolderPath + L"\\" + fileName);
-                }
-            });
-        }
-
-        for (auto& thread : threads) {
-            thread.join();
-        }
-    }
-
-public:
-    IndexingProcessorCls(const std::wstring& indexDir, const std::wstring& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
 
     void Run(void)
     {
-        // unprocessedPasswordsDir dizininde dolas
-        for (const auto& entry : std::filesystem::directory_iterator(unprocessedPasswordsDir)) 
-        {
-            if (entry.is_regular_file())
-            {
-                // dizindeki obje regular file ise
-
-#ifdef DEBUG
-                std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
-#endif /* DEBUG */
-
-                Scanning(entry);
-            }
-        }
+        ScanFolder();
 
         Indexing();
     }
@@ -218,28 +275,45 @@ private:
     };
 
     std::unordered_map<std::wstring, IndexingProcessStruct> map_;
-    std::unordered_map<std::wstring, std::unordered_map<std::wstring, std::wstring>> passwords_;
 
-#ifdef DEBUG
+    //first: subfolderName, second.first: file number, second.second.first: password, second.second.second: path 
+    std::unordered_map<std::wstring, std::unordered_map<int, std::unordered_map<std::wstring, std::wstring>>> passwords_;
+
+#ifdef _DEBUG_
     std::unordered_map<std::wstring, int> beforeFilterForCaseSensitivityAndDuplications;
     std::unordered_map<std::wstring, int> afterFilterForCaseSensitivityAndDuplications;
-#endif /* DEBUG */
+#endif /* _DEBUG_ */
 };
+
+void deneme(void)
+{
+    std::cout << "deneme\n";
+}
 
 #include <chrono>
 int main(void) 
 {
-    auto start = std::chrono::high_resolution_clock::now();
-
     const std::wstring unprocessedPasswordsDir = L"C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Unprocessed-Passwords";
     const std::wstring indexDir = L"C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\application\\Index";
+
+#ifdef _BENCHMARK_
+    auto start = std::chrono::high_resolution_clock::now();
+#endif /* _BENCHMARK_ */
 
     IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};
     indexingProcessor.Run();
 
+#ifdef _BENCHMARK_
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Elapsed time: " << elapsed.count() << " milisecond" << std::endl;
+    std::cout << "Total elapsed time: " << elapsed.count() << " milisecond" << std::endl;
+#endif /* _BENCHMARK_ */
 
+    // auto callback = std::bind(&IndexingProcessorCls::Run, &indexingProcessor);
+    // FolderWatcher watcher(std::string(unprocessedPasswordsDir.begin(), unprocessedPasswordsDir.end()), callback);
+    // watcher.Start();
+    
+    // while(1) {}
+    
     return 0;
 }

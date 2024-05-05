@@ -63,6 +63,10 @@
         "span": "cpp",
         "variant": "cpp",
         "set": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "cstdarg": "cpp",
+        "cstring": "cpp",
+        "unordered_set": "cpp",
+        "csignal": "cpp"
     }
 }
