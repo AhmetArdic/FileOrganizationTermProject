@@ -1,20 +1,28 @@
 project(Code)
 
+set(CMAKE_CXX_COMPILER "C:/msys64/ucrt64/bin/g++.exe")
+set(CMAKE_C_COMPILER "C:/msys64/ucrt64/bin/gcc.exe")  
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+
 set(CMAKE_CXX_STANDARD 17)
-set(HASHING_LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/hashingLibs)
-set(FOLDER_WATCHER_LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/folderWatcher)
+set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-add_library(md5 ${HASHING_LIBRARY_DIR}/md5.cpp ${HASHING_LIBRARY_DIR}/md5.h)
-add_library(sha256 ${HASHING_LIBRARY_DIR}/sha256.cpp ${HASHING_LIBRARY_DIR}/sha256.h)
-add_library(sha1 ${HASHING_LIBRARY_DIR}/sha1.cpp ${HASHING_LIBRARY_DIR}/sha1.h)
+add_library(my_library
+    ${INC_DIR}/FolderWatcherCls.h
+    ${INC_DIR}/IndexingProcessor.h
+    ${INC_DIR}/md5.h
+    ${INC_DIR}/sha1.h
+    ${INC_DIR}/sha256.h
+    ${SRC_DIR}/FolderWatcherCls.cpp
+    ${SRC_DIR}/IndexingProcessor.cpp
+    ${SRC_DIR}/md5.cpp
+    ${SRC_DIR}/sha1.cpp
+    ${SRC_DIR}/sha256.cpp
+)
 
-add_library(folder_watcher ${FOLDER_WATCHER_LIBRARY_DIR}/folderWatcher.cpp ${FOLDER_WATCHER_LIBRARY_DIR}/folderWatcher.h)
-
+target_include_directories(my_library PUBLIC ${INC_DIR})
 add_executable(Code main.cpp)
 
-target_link_libraries(Code PRIVATE md5)
-target_link_libraries(Code PRIVATE sha256)
-target_link_libraries(Code PRIVATE sha1)
-
-target_link_libraries(Code PRIVATE folder_watcher)
+target_link_libraries(Code PUBLIC my_library)
 

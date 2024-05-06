@@ -3,9 +3,9 @@
 #include <chrono>
 #include <thread>
 
-#include "folderWatcher.h"
+#include "FolderWatcherCls.h"
 
-void FolderWatcher::Start() 
+void FolderWatcherCls::Start() 
 {
     std::cout << "Folder Watcher is working..." << std::endl;
 
@@ -13,7 +13,7 @@ void FolderWatcher::Start()
     thread_ = std::thread([this]() { Watch(); });
 }
 
-void FolderWatcher::Stop() 
+void FolderWatcherCls::Stop() 
 {
     running_ = false;
     if (thread_.joinable())
@@ -22,15 +22,15 @@ void FolderWatcher::Stop()
     }
 }
 
-void FolderWatcher::Watch() 
+void FolderWatcherCls::Watch() 
 {
-    std::unordered_set<std::string> current_files;
+    std::unordered_set<std::wstring> current_files;
     PopulateFileList(current_files);
 
     while (running_) {
         std::this_thread::sleep_for(std::chrono::seconds(INTERVAL));
 
-        std::unordered_set<std::string> new_files;
+        std::unordered_set<std::wstring> new_files;
         PopulateFileList(new_files);
 
         // Yeni eklenen dosyaları kontrol et
@@ -38,9 +38,8 @@ void FolderWatcher::Watch()
         {
             if (current_files.find(file) == current_files.end()) 
             {
-                std::cout << "New file added: " << file << std::endl;
-                // callback_(file);
-                callback_();
+                std::wcout << "New file added: " << file << std::endl;
+                callback_(file);
             }
         }
 
@@ -52,7 +51,6 @@ void FolderWatcher::Watch()
             {
                 std::cout << "File removed: " << file << std::endl;
                 callback_(file);
-                // callback_();
             }
         */
 
@@ -60,13 +58,13 @@ void FolderWatcher::Watch()
     }
 }
 
-void FolderWatcher::PopulateFileList(std::unordered_set<std::string>& file_list) const 
+void FolderWatcherCls::PopulateFileList(std::unordered_set<std::wstring>& file_list) const 
 {
     for (const auto& entry : std::filesystem::directory_iterator(path_)) 
     {
         if (std::filesystem::is_regular_file(entry)) 
         {
-            file_list.insert(entry.path().string());
+            file_list.insert(entry.path().wstring());
         }
     }
 }
