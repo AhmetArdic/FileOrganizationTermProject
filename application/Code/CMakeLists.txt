@@ -2,7 +2,6 @@ project(Code)
 
 set(CMAKE_CXX_COMPILER "C:/msys64/ucrt64/bin/g++.exe")
 set(CMAKE_C_COMPILER "C:/msys64/ucrt64/bin/gcc.exe")  
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 
 set(CMAKE_CXX_STANDARD 17)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/inc)

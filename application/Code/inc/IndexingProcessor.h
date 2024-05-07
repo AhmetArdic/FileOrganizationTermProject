@@ -50,6 +50,7 @@ private:
 
     //first: subfolderName, second.first: file number, second.second.first: password, second.second.second: path 
     std::unordered_map<std::wstring, std::unordered_map<int, std::unordered_map<std::wstring, std::wstring>>> passwords_;
+    std::unordered_map<std::wstring, std::unordered_map<int, std::unordered_map<std::wstring, std::wstring>>> writablePasswords_;
 };
 
 class IndexingProcessorHelperCls

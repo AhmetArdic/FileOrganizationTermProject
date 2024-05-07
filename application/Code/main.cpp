@@ -11,7 +11,7 @@ int main(void)
     IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};
     indexingProcessor.Run();
 
-    FolderWatcherCls watcher(unprocessedPasswordsDir, std::bind(&IndexingProcessorCls::HandleNewPassword, indexingProcessor, std::placeholders::_1));
+    FolderWatcherCls watcher(unprocessedPasswordsDir, std::bind(&IndexingProcessorCls::HandleNewPassword, &indexingProcessor, std::placeholders::_1));
     watcher.Start();
 
     while (true) {}

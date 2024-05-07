@@ -79,21 +79,38 @@ void IndexingProcessorCls::ScanFile(const std::filesystem::path& path)
     std::cout << "ScanFile is started" << std::endl;
 
     std::wifstream inputFile(path);  // uzerinde islem yapiacak dosyayi okuma modunda ac
-    std::wstring line;
+    std::wstring password;
 
     auto start = std::chrono::high_resolution_clock::now();
 
     // okuma modunda acilan dosyanin satirlarında dolas
-    while (std::getline(inputFile, line)) 
+    while (std::getline(inputFile, password)) 
     {
-        if (!line.empty())  
+        if (!password.empty())  
         {
             // eger satir bos degilse
 
-            std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(line[0]);
+            std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
             int fileNumber = CalculateFileNumber(subfolderName);
 
-            passwords_[subfolderName][fileNumber][line] = path.filename(); 
+            int count = 0;
+            bool notfoundFlag = false;
+            for(const auto& file : passwords_[subfolderName])
+            {
+                count++;
+                if(file.second.find(password) != file.second.end())
+                {
+                    notfoundFlag = true;
+                    break;
+                }
+            }
+
+            if(!notfoundFlag)
+            {
+                writablePasswords_[subfolderName][fileNumber][password] = path.filename();
+            }
+
+            passwords_[subfolderName][fileNumber][password] = path.filename(); 
         }
     }
 
@@ -115,8 +132,6 @@ void IndexingProcessorCls::ScanFolder(const std::wstring& path, std::function<vo
         {
             // dizindeki obje regular file ise
 
-            std::cout << entry.path() << std::endl; // uzerinde islem yapilan dosya
-
             callback(entry.path());
         }
         else if(entry.is_directory())
@@ -136,7 +151,7 @@ void IndexingProcessorCls::Indexing()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    for(const auto& item : passwords_)
+    for(const auto& item : writablePasswords_)
     {
         subFolderThreads.emplace_back([this, item]()
         {
@@ -178,7 +193,7 @@ void IndexingProcessorCls::Indexing()
     std::chrono::duration<double, std::milli> elapsed = end - start;
     std::cout << "Total elapsed time: " << elapsed.count() << " milisecond on Indexing" << std::endl;
 
-    passwords_.clear();
+    writablePasswords_.clear();
 
     std::cout << "Indexing is finished" << std::endl;
 }
