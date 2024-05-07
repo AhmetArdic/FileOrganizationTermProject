@@ -5,12 +5,15 @@
 
 #include "FolderWatcherCls.h"
 
-void FolderWatcherCls::Start() 
+void FolderWatcherCls::Run() 
 {
     std::cout << "Folder Watcher is working..." << std::endl;
 
     running_ = true;
-    thread_ = std::thread([this]() { Watch(); });
+    thread_ = std::thread([this]() { 
+        Watch(); 
+    });
+    thread_.detach();
 }
 
 void FolderWatcherCls::Stop() 

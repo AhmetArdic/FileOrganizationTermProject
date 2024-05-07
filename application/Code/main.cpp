@@ -11,10 +11,27 @@ int main(void)
     IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};
     indexingProcessor.Run();
 
-    FolderWatcherCls watcher(unprocessedPasswordsDir, std::bind(&IndexingProcessorCls::HandleNewPassword, &indexingProcessor, std::placeholders::_1));
-    watcher.Start();
+    FolderWatcherCls updater(unprocessedPasswordsDir, std::bind(&IndexingProcessorCls::HandleNewPassword, &indexingProcessor, std::placeholders::_1));
+    updater.Run();
 
-    while (true) {}
+    while (true) 
+    {
+        std::wstring userInput{};
+        std::cout << "Aranacak sifre: ";
+        std::wcin >> userInput;
+
+        std::wcout << '"' << userInput << '"' << " araniyor...\n";
+        if(indexingProcessor.Search(userInput))
+        {
+            std::cout << "Bulundu!\n";
+        }
+        else
+        {
+            std::cout << "Bulunamadi!!!!\n";
+            
+            indexingProcessor.Add(userInput);
+        }
+    }
     
     return 0;
 }

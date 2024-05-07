@@ -33,6 +33,10 @@ public:
 
     void Run(void);
 
+    bool Search(const std::wstring& password);
+
+    void Add(const std::wstring& password);
+
 private:
     static constexpr int MAX_LINE_NUMBER = 10000; 
 

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <thread>
 #include <vector>
+#include <locale>
 
 #include <chrono>
 
@@ -93,19 +94,7 @@ void IndexingProcessorCls::ScanFile(const std::filesystem::path& path)
             std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
             int fileNumber = CalculateFileNumber(subfolderName);
 
-            int count = 0;
-            bool notfoundFlag = false;
-            for(const auto& file : passwords_[subfolderName])
-            {
-                count++;
-                if(file.second.find(password) != file.second.end())
-                {
-                    notfoundFlag = true;
-                    break;
-                }
-            }
-
-            if(!notfoundFlag)
+            if(!Search(password))
             {
                 writablePasswords_[subfolderName][fileNumber][password] = path.filename();
             }
@@ -205,7 +194,6 @@ void IndexingProcessorCls::HandleNewPassword(const std::wstring& filePath)
     Indexing();
 }
 
-
 void IndexingProcessorCls::Run(void)
 {   
     ScanFolder(indexDir, std::bind(&IndexingProcessorCls::ScanIndex, this, std::placeholders::_1));
@@ -215,4 +203,30 @@ void IndexingProcessorCls::Run(void)
         Indexing();
     });
     indexingThread.detach();
+}
+
+bool IndexingProcessorCls::Search(const std::wstring& password)
+{
+    // passwords_[subfolderName][fileNumber][password] = path.filename(); 
+
+    for(const auto& file : passwords_[IndexingProcessorHelperCls::GenerateSubFolderName(password[0])])
+    {
+        if(file.second.find(password) != file.second.end())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void IndexingProcessorCls::Add(const std::wstring& password)
+{
+    std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
+    int fileNumber = CalculateFileNumber(subfolderName);
+
+    writablePasswords_[subfolderName][fileNumber][password] = L"User Input";
+    passwords_[subfolderName][fileNumber][password] = L"User Input";
+
+    Indexing();
 }

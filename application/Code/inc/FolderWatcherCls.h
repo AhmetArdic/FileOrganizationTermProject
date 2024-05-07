@@ -13,7 +13,7 @@ public:
 public:
     FolderWatcherCls(const std::wstring& path, CallbackFunction callback) : path_(path), callback_(callback), running_(false) {}
 
-    void Start();
+    void Run();
 
     void Stop();
 
