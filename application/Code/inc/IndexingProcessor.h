@@ -168,11 +168,11 @@ public:
 
     static std::wstring GenerateSubFolderName(wchar_t firstChar)
     {
-        if(!std::iswalpha(firstChar) && !std::iswdigit(firstChar))
+        if(!iswalpha(firstChar) && !iswdigit(firstChar))
         {
             return L"@(" + InvalidSignConvertor(firstChar) + L")";
         }
-        else if(std::iswupper(firstChar))
+        else if(iswupper(firstChar))
         {
             return L"_" + std::wstring(1, firstChar) + L"_";
         }
