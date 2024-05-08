@@ -207,8 +207,6 @@ void IndexingProcessorCls::Run(void)
 
 bool IndexingProcessorCls::Search(const std::wstring& password)
 {
-    // passwords_[subfolderName][fileNumber][password] = path.filename(); 
-
     for(const auto& file : passwords_[IndexingProcessorHelperCls::GenerateSubFolderName(password[0])])
     {
         if(file.second.find(password) != file.second.end())

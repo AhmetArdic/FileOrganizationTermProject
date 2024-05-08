@@ -1,12 +1,10 @@
-
-*.exe
-
 ######################
 # Proje dizinleri
 ######################
-external/
-application/Index/
-build/
+Index/
+debug/
+release/
+.idea/
 
 ######################
 # CMake
