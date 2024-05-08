@@ -1,9 +1,11 @@
 #ifndef _INDEXING_PROCESSOR_H_
 #define _INDEXING_PROCESSOR_H_
 
+#include <fstream>
 #include <filesystem>
-#include <unordered_map>
 #include <functional>
+#include <unordered_map>
+#include <utility>
 
 #include "md5.h"
 #include "sha256.h"
@@ -12,10 +14,6 @@
 class IndexingProcessorCls
 {
 private:
-    void WriteToFile(const std::wstring& line, const std::filesystem::path& path);
-
-    std::wstring MakeSubFolder(const std::wstring& path);
-
     int CalculateFileNumber(const std::wstring& key);
 
     void ScanIndex(const std::filesystem::path& path);
@@ -27,11 +25,11 @@ private:
     void Indexing();
 
 public:
-    IndexingProcessorCls(const std::wstring& indexDir, const std::wstring& unprocessedPasswordsDir) : indexDir{indexDir}, unprocessedPasswordsDir{unprocessedPasswordsDir} {}
+    IndexingProcessorCls(std::wstring  indexDir, std::wstring  unprocessedPasswordsDir) : indexDir{std::move(indexDir)}, unprocessedPasswordsDir{std::move(unprocessedPasswordsDir)} {}
 
     void HandleNewPassword(const std::wstring& filePath);
 
-    void Run(void);
+    void Run();
 
     bool Search(const std::wstring& password);
 
@@ -65,7 +63,7 @@ public:
         static MD5 md5;
 
         std::string result = md5(std::string(password.begin(), password.end()));
-        return std::wstring(result.begin(), result.end()) ;
+        return { result.begin(), result.end() };
     }
 
     static std::wstring CalculateSha128(std::wstring password)
@@ -73,16 +71,43 @@ public:
         static SHA1 sha1;
         
         std::string result = sha1(std::string(password.begin(), password.end()));
-        return std::wstring(result.begin(), result.end()) ;
+        return { result.begin(), result.end() };
     }
-
 
     static std::wstring CalculateSha256(std::wstring password)
     {
         static SHA256 sha256;
 
         std::string result = sha256(std::string(password.begin(), password.end()));
-        return std::wstring(result.begin(), result.end()) ;
+        return { result.begin(), result.end() };
+    }
+
+    static void WriteToFile(const std::wstring& line, const std::filesystem::path& path)
+    {
+        std::wofstream outputFile(path, std::ios::app);  // ilgili dosyayi append modunda ac
+        outputFile << line << std::endl;
+        outputFile.close(); // dosyayi kapat
+    }
+
+    static std::wstring MakeSubFolder(const std::wstring& path)
+    {
+        // path: okunan dosyadaki sifrenin ilk karakterine gore olusturulacak klasorun ismi ve yolu
+
+        if (!std::filesystem::exists(path))
+        {
+            // eger dizin yok ise olustur
+
+            try
+            {
+                std::filesystem::create_directory(path);
+            }
+            catch(const std::exception& e)
+            {
+                throw;
+            }
+        }
+
+        return path;
     }
 
     static std::wstring ExtractSubstringAfterLastDelimiter(const std::wstring& str, wchar_t delimiter) 
@@ -126,9 +151,9 @@ public:
     {
         int result = 0;
 
-        for (char c : str) 
+        for (wchar_t c : str)
         {
-            if (std::isdigit(c)) 
+            if (iswdigit(c))
             {
                 result = result * 10 + (c - '0');
             }
@@ -162,7 +187,7 @@ public:
         case L'':
             return L"EscapeSequence";
         default:
-            return std::wstring(1, c);
+            return { c };
         }
     }
 
@@ -178,7 +203,7 @@ public:
         }
         else
         {
-            return std::wstring(1, firstChar);
+            return { firstChar };
         }
     }
 };

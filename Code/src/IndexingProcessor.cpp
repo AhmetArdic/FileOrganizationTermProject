@@ -2,39 +2,11 @@
 #include <fstream>
 #include <thread>
 #include <vector>
-#include <locale>
 
 #include <chrono>
 
 #include "IndexingProcessor.h"
 
-void IndexingProcessorCls::WriteToFile(const std::wstring& line, const std::filesystem::path& path)
-{
-    std::wofstream outputFile(path, std::ios::app);  // ilgili dosyayi append modunda ac
-    outputFile << line << std::endl;
-    outputFile.close(); // dosyayi kapat
-}
-
-std::wstring IndexingProcessorCls::MakeSubFolder(const std::wstring& path)
-{
-    // path: okunan dosyadaki sifrenin ilk karakterine gore olusturulacak klasorun ismi ve yolu
-
-    if (!std::filesystem::exists(path)) 
-    {
-        // eger dizin yok ise olustur
-
-        try
-        {
-            std::filesystem::create_directory(path);
-        }
-        catch(const std::exception& e)
-        {
-            throw;
-        }
-    }
-
-    return path;
-}
 
 int IndexingProcessorCls::CalculateFileNumber(const std::wstring& key)
 {
@@ -66,9 +38,9 @@ void IndexingProcessorCls::ScanIndex(const std::filesystem::path& path)
             const auto& subfolderName = IndexingProcessorHelperCls::GetSubstringBetweenDelimiters(path, L'\\', L'\\');
             const auto& fileNumber = IndexingProcessorHelperCls::ExtractIntegerFromString(path.filename());
             const auto& password = IndexingProcessorHelperCls::ExtractSubstringBeforeFirstDelimiter(line, '|');
-            const auto& path = IndexingProcessorHelperCls::ExtractSubstringAfterLastDelimiter(line, '|');
+            const auto& filePath = IndexingProcessorHelperCls::ExtractSubstringAfterLastDelimiter(line, '|');
 
-            passwords_[subfolderName][fileNumber][password] = path;
+            passwords_[subfolderName][fileNumber][password] = filePath;
         }
     }
 
@@ -146,7 +118,7 @@ void IndexingProcessorCls::Indexing()
         {
             std::vector<std::thread> fileThreads;
 
-            std::wstring subFolderPath = MakeSubFolder(indexDir + L"\\" + item.first);   
+            std::wstring subFolderPath = IndexingProcessorHelperCls::MakeSubFolder(indexDir + L"\\" + item.first);
 
             for(const auto& file : item.second)
             {
@@ -160,8 +132,8 @@ void IndexingProcessorCls::Indexing()
                                             IndexingProcessorHelperCls::CalculateMD5Hash(password.first) + L"|" + 
                                             IndexingProcessorHelperCls::CalculateSha128(password.first) + L"|" + 
                                             IndexingProcessorHelperCls::CalculateSha256(password.first) + L"|" + 
-                                            password.second; 
-                        WriteToFile(line, subFolderPath + L"\\" + fileName);
+                                            password.second;
+                        IndexingProcessorHelperCls::WriteToFile(line, subFolderPath + L"\\" + fileName);
                     }
                 });   
             }
@@ -194,12 +166,12 @@ void IndexingProcessorCls::HandleNewPassword(const std::wstring& filePath)
     Indexing();
 }
 
-void IndexingProcessorCls::Run(void)
+void IndexingProcessorCls::Run()
 {   
-    ScanFolder(indexDir, std::bind(&IndexingProcessorCls::ScanIndex, this, std::placeholders::_1));
+    ScanFolder(indexDir, [this](auto&& PH1) { ScanIndex(std::forward<decltype(PH1)>(PH1)); });
     
     std::thread indexingThread([this]() {
-        ScanFolder(unprocessedPasswordsDir, std::bind(&IndexingProcessorCls::ScanFile, this, std::placeholders::_1));
+        ScanFolder(unprocessedPasswordsDir, [this](auto&& PH1) { ScanFile(std::forward<decltype(PH1)>(PH1)); });
         Indexing();
     });
     indexingThread.detach();
@@ -207,15 +179,15 @@ void IndexingProcessorCls::Run(void)
 
 bool IndexingProcessorCls::Search(const std::wstring& password)
 {
-    for(const auto& file : passwords_[IndexingProcessorHelperCls::GenerateSubFolderName(password[0])])
-    {
-        if(file.second.find(password) != file.second.end())
-        {
-            return true;
-        }
-    }
+    const auto& subFolderName = passwords_[IndexingProcessorHelperCls::GenerateSubFolderName(password[0])];
+    bool hasPassword = std::any_of(subFolderName.begin(),
+                                   subFolderName.end(),
+                                   [&](const auto& file)
+                                   {
+                                       return file.second.find(password) != file.second.end();
+                                   });
 
-    return false;
+    return hasPassword;
 }
 
 void IndexingProcessorCls::Add(const std::wstring& password)

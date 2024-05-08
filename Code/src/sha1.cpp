@@ -6,9 +6,6 @@
 
 #include "sha1.h"
 
-// big endian architectures need #define __BYTE_ORDER __BIG_ENDIAN
-#include <sys/types.h>
-
 /// same as reset()
 SHA1::SHA1()
 {

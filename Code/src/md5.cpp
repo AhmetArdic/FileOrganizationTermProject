@@ -6,8 +6,6 @@
 
 #include "md5.h"
 
-#include <sys/types.h>
-
 /// same as reset()
 MD5::MD5()
 {
