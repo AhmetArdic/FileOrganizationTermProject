@@ -205,6 +205,46 @@ bool IndexingProcessorCls::Search(const std::wstring& password)
     return hasPassword;
 }
 
+bool IndexingProcessorCls::SearchInIndexFolder(const std::wstring& password)
+{
+    const auto& subFolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
+
+    std::vector<std::thread> scanningThreads{};
+    bool hasPassword = false;
+
+    for (const auto& entry : std::filesystem::directory_iterator(indexDir + L"//" + subFolderName))
+    {
+        if (entry.is_regular_file())
+        {
+            // dizindeki obje regular file ise
+            scanningThreads.emplace_back([&entry, &password, &hasPassword](){
+                std::wifstream inputFile(entry.path());  // uzerinde islem yapiacak dosyayi okuma modunda ac
+                std::wstring line;
+
+                while (std::getline(inputFile, line))
+                {
+                    if (!line.empty())
+                    {
+                        const auto& passwordInLine = IndexingProcessorHelperCls::ExtractSubstringBeforeFirstDelimiter(line, '|');
+
+                        if(password == passwordInLine)
+                        {
+                            hasPassword = true;
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    for (auto& thread : scanningThreads)
+    {
+        thread.join();
+    }
+
+    return hasPassword;
+}
+
 void IndexingProcessorCls::Add(const std::wstring& password)
 {
     std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);

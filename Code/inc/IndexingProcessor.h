@@ -32,6 +32,7 @@ public:
     void Run();
 
     bool Search(const std::wstring& password);
+    bool SearchInIndexFolder(const std::wstring& password);
 
     void Add(const std::wstring& password);
 
