@@ -119,7 +119,8 @@ void IndexingProcessorCls::Indexing()
         {
             std::vector<std::thread> fileThreads;
 
-            std::wstring subFolderPath = IndexingProcessorHelperCls::MakeSubFolder(indexDir + L"\\" + item.first);
+            std::wstring subFolderPath = indexDir + L"\\" + item.first;
+            std::filesystem::create_directory(subFolderPath);
 
             for(const auto& file : item.second)
             {

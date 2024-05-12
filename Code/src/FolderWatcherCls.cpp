@@ -1,7 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <chrono>
-#include <thread>
 
 #include "FolderWatcherCls.h"
 
@@ -60,8 +58,7 @@ void FolderWatcherCls::Watch()
         current_files = std::move(new_files);
     }
 }
-
-void FolderWatcherCls::PopulateFileList(std::unordered_set<std::wstring>& file_list) const 
+void FolderWatcherCls::PopulateFileList(std::unordered_set<std::wstring>& file_list) const
 {
     for (const auto& entry : std::filesystem::directory_iterator(path_)) 
     {

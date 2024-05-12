@@ -4,14 +4,6 @@
 #include "inc/IndexingProcessor.h"
 #include "inc/FolderWatcherCls.h"
 
-void MakeDir(const std::wstring& path)
-{
-    if (!std::filesystem::exists(path))
-    {
-        std::filesystem::create_directory(path);
-    }
-}
-
 void Search(IndexingProcessorCls& processor)
 {
     while (true)
@@ -41,8 +33,8 @@ int main()
     const std::wstring indexDir = L"C:\\Users\\AhmetArdic\\Desktop\\FileOrgTermProject\\Index";
 
     // Hazirlik Asamasi (5 Puan)
-    MakeDir(processedPasswordsDir);
-    MakeDir(indexDir);
+    std::filesystem::create_directory(processedPasswordsDir);
+    std::filesystem::create_directory(indexDir);
 
     // Indexleme Islemi (35 Puan)
     IndexingProcessorCls indexingProcessor{indexDir, unprocessedPasswordsDir};

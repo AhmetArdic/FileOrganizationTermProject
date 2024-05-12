@@ -89,28 +89,7 @@ public:
         outputFile.close(); // dosyayi kapat
     }
 
-    static std::wstring MakeSubFolder(const std::wstring& path)
-    {
-        // path: okunan dosyadaki sifrenin ilk karakterine gore olusturulacak klasorun ismi ve yolu
-
-        if (!std::filesystem::exists(path))
-        {
-            // eger dizin yok ise olustur
-
-            try
-            {
-                std::filesystem::create_directory(path);
-            }
-            catch(const std::exception& e)
-            {
-                throw;
-            }
-        }
-
-        return path;
-    }
-
-    static std::wstring ExtractSubstringAfterLastDelimiter(const std::wstring& str, wchar_t delimiter) 
+    static std::wstring ExtractSubstringAfterLastDelimiter(const std::wstring& str, wchar_t delimiter)
     {
         size_t lastPipePos = str.rfind(delimiter);
 
