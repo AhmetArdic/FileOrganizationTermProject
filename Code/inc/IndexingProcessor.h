@@ -42,13 +42,13 @@ private:
     const std::wstring indexDir;
     const std::wstring unprocessedPasswordsDir;
 
-    struct IndexingProcessStruct
+    struct FileInfoStruct
     {
         int totalLineNumberOfCurrentFile;
         int totalFileNumberOfIndexSubfolder;
     };
 
-    std::unordered_map<std::wstring, IndexingProcessStruct> map_;
+    std::unordered_map<std::wstring, FileInfoStruct> fileInfo_;
 
     //first: subfolderName, second.first: file number, second.second.first: password, second.second.second: path 
     std::unordered_map<std::wstring, std::unordered_map<int, std::unordered_map<std::wstring, std::wstring>>> passwords_;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <mutex>
 #include <vector>
 #include <algorithm>
 
@@ -8,18 +9,19 @@
 
 #include "IndexingProcessor.h"
 
+std::mutex mtx;
 
 int IndexingProcessorCls::CalculateFileNumber(const std::wstring& key)
 {
-    if(++map_[key].totalLineNumberOfCurrentFile > IndexingProcessorCls::MAX_LINE_NUMBER)
+    if(++fileInfo_[key].totalLineNumberOfCurrentFile > IndexingProcessorCls::MAX_LINE_NUMBER)
     {
         // eger o an uzerinde calisilan karakteri iceren dizindeki dosyanin satir sayisi MAX_LINE_NUMBER'i gecerse
 
-        ++map_[key].totalFileNumberOfIndexSubfolder;   // yeni satirlarin yazilacagi yeni dosyanin numarasi
-        map_[key].totalLineNumberOfCurrentFile = 0;    // yeni dosyaya gecildigi icin satir sayisi sayacini sifirla
+        ++fileInfo_[key].totalFileNumberOfIndexSubfolder;   // yeni satirlarin yazilacagi yeni dosyanin numarasi
+        fileInfo_[key].totalLineNumberOfCurrentFile = 0;    // yeni dosyaya gecildigi icin satir sayisi sayacini sifirla
     }
 
-    return map_[key].totalFileNumberOfIndexSubfolder;
+    return fileInfo_[key].totalFileNumberOfIndexSubfolder;
 }
 
 void IndexingProcessorCls::ScanIndex(const std::filesystem::path& path)
@@ -50,7 +52,7 @@ void IndexingProcessorCls::ScanIndex(const std::filesystem::path& path)
 
 void IndexingProcessorCls::ScanFile(const std::filesystem::path& path)
 {
-    std::cout << "ScanFile is started" << std::endl;
+    std::cout << "ScanFile is started on " << path.filename() << std::endl;
 
     std::wifstream inputFile(path);  // uzerinde islem yapiacak dosyayi okuma modunda ac
     std::wstring password;
@@ -64,6 +66,9 @@ void IndexingProcessorCls::ScanFile(const std::filesystem::path& path)
         {
             // eger satir bos degilse
 
+            // kritik bolgeye giris
+            mtx.lock();
+
             std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
             int fileNumber = CalculateFileNumber(subfolderName);
 
@@ -72,13 +77,16 @@ void IndexingProcessorCls::ScanFile(const std::filesystem::path& path)
                 writablePasswords_[subfolderName][fileNumber][password] = path.filename();
             }
 
-            passwords_[subfolderName][fileNumber][password] = path.filename(); 
+            passwords_[subfolderName][fileNumber][password] = path.filename();
+
+            // kritik bolgeden cikis
+            mtx.unlock();
         }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "Elapsed time: " << elapsed.count() << " milisecond on " << path.filename() << std::endl;
+    std::cout << "Elapsed time: " << elapsed.count() << " milisecond" << std::endl;
 
     std::cout << "ScanFile is finished" << std::endl;
 }
@@ -87,19 +95,27 @@ void IndexingProcessorCls::ScanFolder(const std::wstring& path, std::function<vo
 {
     std::cout << "ScanFolder is started" << std::endl;
 
+    std::vector<std::thread> scanningThreads{};
+
     // unprocessedPasswordsDir dizininde dolas
     for (const auto& entry : std::filesystem::directory_iterator(path)) 
     {
         if (entry.is_regular_file())
         {
             // dizindeki obje regular file ise
-
-            callback(entry.path());
+            scanningThreads.emplace_back([entry, callback](){
+                callback(entry.path());
+            });
         }
         else if(entry.is_directory())
         {
             ScanFolder(entry.path(), callback);
         }
+    }
+
+    for (auto& thread : scanningThreads)
+    {
+        thread.join();
     }
 
     std::cout << "ScanFolder is finished" << std::endl;
@@ -172,11 +188,8 @@ void IndexingProcessorCls::Run()
 {   
     ScanFolder(indexDir, [this](auto&& PH1) { ScanIndex(std::forward<decltype(PH1)>(PH1)); });
     
-    std::thread indexingThread([this]() {
-        ScanFolder(unprocessedPasswordsDir, [this](auto&& PH1) { ScanFile(std::forward<decltype(PH1)>(PH1)); });
-        Indexing();
-    });
-    indexingThread.detach();
+    ScanFolder(unprocessedPasswordsDir, [this](auto&& PH1) { ScanFile(std::forward<decltype(PH1)>(PH1)); });
+    Indexing();
 }
 
 bool IndexingProcessorCls::Search(const std::wstring& password)
@@ -197,8 +210,8 @@ void IndexingProcessorCls::Add(const std::wstring& password)
     std::wstring subfolderName = IndexingProcessorHelperCls::GenerateSubFolderName(password[0]);
     int fileNumber = CalculateFileNumber(subfolderName);
 
-    writablePasswords_[subfolderName][fileNumber][password] = L"User Input";
-    passwords_[subfolderName][fileNumber][password] = L"User Input";
+    writablePasswords_[subfolderName][fileNumber][password] = L"search";
+    passwords_[subfolderName][fileNumber][password] = L"search";
 
     Indexing();
 }

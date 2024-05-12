@@ -1,8 +1,10 @@
 #include <iostream>
 #include <filesystem>
+#include <chrono>
 
 #include "inc/IndexingProcessor.h"
 #include "inc/FolderWatcherCls.h"
+
 
 void Search(IndexingProcessorCls& processor)
 {
@@ -13,6 +15,9 @@ void Search(IndexingProcessorCls& processor)
         std::wcin >> userInput;
 
         std::wcout << '"' << userInput << '"' << " araniyor...\n";
+
+        auto start = std::chrono::high_resolution_clock::now();
+
         if(processor.Search(userInput))
         {
             std::cout << "Bulundu!\n";
@@ -23,6 +28,10 @@ void Search(IndexingProcessorCls& processor)
 
             processor.Add(userInput);
         }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Elapsed time for total search: " << elapsed.count() << " milisecond" << std::endl;
     }
 }
 
